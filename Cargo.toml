@@ -1,8 +1,10 @@
 [package]
-name = "Burtle"
+name = "burtle"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bevy = { version = "0.10.1", default-features = true, features = ["wayland"] }
+bevy_prototype_lyon = "0.8.0"
