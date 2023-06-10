@@ -1,10 +1,9 @@
 use std::collections::VecDeque;
 
 use bevy::prelude::*;
+use bevy::window::close_on_esc;
 use bevy::window::{PresentMode, WindowResolution};
 use bevy_prototype_lyon::prelude::*;
-
-pub struct Burtle {}
 
 impl Burtle {
     pub fn setup(width: f32, height: f32) {
@@ -23,23 +22,23 @@ impl Burtle {
             }))
             .add_plugin(ShapePlugin)
             .add_startup_system(setup)
-            .add_system(burtle_movement)
-            .run();
+            .add_systems((burtle_movement, close_on_esc))
+            .run()
     }
 }
 #[derive(Component)]
-pub struct Turtle {
+pub struct Burtle {
     pub size: f32,
     pub heading: f32,
     pub pen_state: bool,
     pub pen_size: f32,
     pub pen_color: Color,
     pub registered_pos: (f32, Vec3),
-    pub instruction: VecDeque<TurtleState>,
+    pub instruction: VecDeque<BurtleState>,
 }
 
 #[derive(Clone, Copy)]
-pub enum TurtleState {
+pub enum BurtleState {
     PenUp,
     PenDown,
     TurnLeft(f32),
@@ -48,25 +47,25 @@ pub enum TurtleState {
     MoveBackward(f32),
 }
 
-impl Turtle {
+impl Burtle {
     pub fn right(&mut self, angle: f32) {
-        self.instruction.push_back(TurtleState::TurnRight(angle))
+        self.instruction.push_back(BurtleState::TurnRight(angle))
     }
     pub fn left(&mut self, angle: f32) {
-        self.instruction.push_back(TurtleState::TurnLeft(angle))
+        self.instruction.push_back(BurtleState::TurnLeft(angle))
     }
     pub fn forward(&mut self, pixels: f32) {
-        self.instruction.push_back(TurtleState::MoveForward(pixels))
+        self.instruction.push_back(BurtleState::MoveForward(pixels))
     }
     pub fn backward(&mut self, pixels: f32) {
         self.instruction
-            .push_back(TurtleState::MoveBackward(pixels))
+            .push_back(BurtleState::MoveBackward(pixels))
     }
     pub fn pen_up(&mut self) {
-        self.instruction.push_back(TurtleState::PenUp)
+        self.instruction.push_back(BurtleState::PenUp)
     }
     pub fn pen_down(&mut self) {
-        self.instruction.push_back(TurtleState::PenDown)
+        self.instruction.push_back(BurtleState::PenDown)
     }
 }
 
@@ -85,7 +84,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, windows: Query<
             texture: asset_server.load("sprites/turtle.png"),
             ..default()
         },
-        Turtle {
+        Burtle {
             size: 100.,
             heading: 0.,
             pen_state: false,
@@ -104,25 +103,25 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, windows: Query<
     });
 }
 
-fn burtle_movement(mut commands: Commands, mut turtle_query: Query<(&mut Transform, &mut Turtle)>) {
+fn burtle_movement(mut commands: Commands, mut turtle_query: Query<(&mut Transform, &mut Burtle)>) {
     for (mut transform, mut turtle) in turtle_query.iter_mut() {
         let Some(&instruction) = turtle.instruction.front() else {
             continue; 
         };
         match instruction {
-            TurtleState::PenUp => {
+            BurtleState::PenUp => {
                 turtle.pen_state = false;
             }
-            TurtleState::PenDown => {
+            BurtleState::PenDown => {
                 turtle.pen_state = true;
             }
-            TurtleState::TurnLeft(angle) => {
+            BurtleState::TurnLeft(angle) => {
                 turtle.heading += angle;
             }
-            TurtleState::TurnRight(angle) => {
+            BurtleState::TurnRight(angle) => {
                 turtle.heading -= angle;
             }
-            TurtleState::MoveForward(pixels) => {
+            BurtleState::MoveForward(pixels) => {
                 let direction = Vec3::new(
                     turtle.heading.to_radians().cos(),
                     turtle.heading.to_radians().sin(),
@@ -146,7 +145,7 @@ fn burtle_movement(mut commands: Commands, mut turtle_query: Query<(&mut Transfo
                     transform.translation -= direction * pixels;
                 }
             }
-            TurtleState::MoveBackward(pixels) => {
+            BurtleState::MoveBackward(pixels) => {
                 let direction = Vec3::new(
                     turtle.heading.to_radians().cos(),
                     turtle.heading.to_radians().sin(),
