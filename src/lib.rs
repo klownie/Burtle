@@ -1,12 +1,11 @@
-use std::collections::VecDeque;
-
 use bevy::prelude::*;
 use bevy::window::close_on_esc;
 use bevy::window::{PresentMode, WindowResolution};
 use bevy_prototype_lyon::prelude::*;
+use std::collections::VecDeque;
 
 impl Burtle {
-    pub fn setup(width: f32, height: f32) {
+    pub fn setup(&self, width: f32, height: f32) {
         App::new()
             .add_plugins(DefaultPlugins.set(WindowPlugin {
                 primary_window: Some(Window {
@@ -14,19 +13,22 @@ impl Burtle {
                     resolution:
                         WindowResolution::new(width, height).with_scale_factor_override(1.0),
                     present_mode: PresentMode::AutoVsync,
-
-                    /*  window_theme: Some(WindowTheme::Dark), */
                     ..default()
                 }),
                 ..default()
             }))
             .add_plugin(ShapePlugin)
+            .insert_resource(Burtle {
+                instruction: self.instruction.to_owned(),
+                ..default()
+            })
             .add_startup_system(setup)
             .add_systems((burtle_movement, close_on_esc))
             .run()
     }
 }
-#[derive(Component)]
+
+#[derive(Component, Resource)]
 pub struct Burtle {
     pub size: f32,
     pub heading: f32,
@@ -45,6 +47,20 @@ pub enum BurtleState {
     TurnRight(f32),
     MoveForward(f32),
     MoveBackward(f32),
+}
+
+impl Default for Burtle {
+    fn default() -> Self {
+        Self {
+            size: 100.,
+            heading: 0.,
+            pen_state: false,
+            pen_size: 2.,
+            pen_color: Color::BLACK,
+            registered_pos: (0., Vec3::new(0., 0., 0.)),
+            instruction: VecDeque::new(),
+        }
+    }
 }
 
 impl Burtle {
