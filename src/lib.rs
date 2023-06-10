@@ -64,6 +64,9 @@ impl Default for Burtle {
 }
 
 impl Burtle {
+    pub fn new() -> Burtle {
+        Burtle { ..default() }
+    }
     pub fn right(&mut self, angle: f32) {
         self.instruction.push_back(BurtleState::TurnRight(angle))
     }
