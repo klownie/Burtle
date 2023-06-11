@@ -39,7 +39,7 @@ pub struct Burtle {
     pub instruction: VecDeque<BurtleState>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum BurtleState {
     PenUp,
     PenDown,
@@ -54,7 +54,7 @@ impl Default for Burtle {
         Self {
             size: 100.,
             heading: 0.,
-            pen_state: false,
+            pen_state: true,
             pen_size: 2.,
             pen_color: Color::BLACK,
             registered_pos: (0., Vec3::new(0., 0., 0.)),
@@ -106,7 +106,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, windows: Query<
         Burtle {
             size: 100.,
             heading: 0.,
-            pen_state: false,
+            pen_state: true,
             pen_size: 2.,
             pen_color: Color::BLACK,
             registered_pos: (
