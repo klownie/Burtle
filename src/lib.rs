@@ -147,6 +147,7 @@ fn burtle_movement(mut commands: Commands, mut turtle_query: Query<(&mut Transfo
                     0.0,
                 );
                 if turtle.pen_state {
+                    println!("drawline");
                     let old_pos = transform.translation.to_owned();
                     transform.translation -= direction * pixels;
                     let shape = shapes::Line(
