@@ -7,7 +7,7 @@ use std::collections::VecDeque;
 impl Burtle {
     pub fn setup(self, width: f32, height: f32) {
         App::new()
-            .insert_resource(GlobalInstruction(self.instruction))
+            .insert_resource(BurtleInstruction(self.instruction))
             .add_plugins(DefaultPlugins.set(WindowPlugin {
                 primary_window: Some(Window {
                     title: "Burtle".into(),
@@ -25,17 +25,16 @@ impl Burtle {
     }
 }
 #[derive(Resource)]
-pub struct GlobalInstruction(VecDeque<BurtleCommand>);
+pub struct BurtleInstruction(VecDeque<BurtleCommand>);
 
 #[derive(Component)]
 pub struct Burtle {
-    pub size: f32,
-    pub heading: f32,
-    pub pen_state: bool,
-    pub pen_size: f32,
-    pub pen_color: Color,
-    pub saved_pos: (f32, Vec3),
-    pub instruction: VecDeque<BurtleCommand>,
+    size: f32,
+    heading: f32,
+    pen_state: bool,
+    pen_size: f32,
+    pen_color: Color,
+    instruction: VecDeque<BurtleCommand>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -46,6 +45,11 @@ pub enum BurtleCommand {
     TurnRight(f32),
     MoveForward(f32),
     MoveBackward(f32),
+    SetPenColor(Color),
+    SetPenSize(f32),
+    SetSize(f32),
+    GoTo(Vec2),
+    SetHeading(f32),
 }
 
 impl Default for Burtle {
@@ -53,10 +57,9 @@ impl Default for Burtle {
         Self {
             size: 100.,
             heading: 0.,
-            pen_state: true,
+            pen_state: false,
             pen_size: 2.,
             pen_color: Color::BLACK,
-            saved_pos: (0., Vec3::new(0., 0., 0.)),
             instruction: VecDeque::new(),
         }
     }
@@ -86,10 +89,24 @@ impl Burtle {
     pub fn pen_down(&mut self) {
         self.instruction.push_back(BurtleCommand::PenDown)
     }
+    pub fn set_pen_color(&mut self, color: Color) {
+        self.instruction
+            .push_back(BurtleCommand::SetPenColor(color))
+    }
+    pub fn set_pen_size(&mut self, size: f32) {
+        self.instruction.push_back(BurtleCommand::SetPenSize(size))
+    }
+    pub fn goto(&mut self, coords: Vec2) {
+        self.instruction.push_back(BurtleCommand::GoTo(coords))
+    }
+    pub fn set_heading(&mut self, direction: f32) {
+        self.instruction
+            .push_back(BurtleCommand::SetHeading(direction))
+    }
 }
 
 fn setup(
-    instructions: Res<GlobalInstruction>,
+    instructions: Res<BurtleInstruction>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     windows: Query<&Window>,
@@ -109,10 +126,6 @@ fn setup(
             ..default()
         },
         Burtle {
-            saved_pos: (
-                0.0,
-                Vec3::new(window.width() / 2., window.height() / 2., 0.0),
-            ),
             instruction: instructions.0.clone(),
             ..default()
         },
@@ -123,8 +136,11 @@ fn setup(
     });
 }
 
-fn burtle_movement(mut commands: Commands, mut turtle_query: Query<(&mut Transform, &mut Burtle)>) {
-    for (mut transform, mut turtle) in turtle_query.iter_mut() {
+fn burtle_movement(
+    mut commands: Commands,
+    mut turtle_query: Query<(&mut Transform, &mut Burtle, &mut Sprite)>,
+) {
+    for (mut transform, mut turtle, mut sprite) in turtle_query.iter_mut() {
         let Some(&instruction) = turtle.instruction.front() else {
             continue; 
         };
@@ -148,7 +164,6 @@ fn burtle_movement(mut commands: Commands, mut turtle_query: Query<(&mut Transfo
                     0.0,
                 );
                 if turtle.pen_state {
-                    println!("drawline");
                     let old_pos = transform.translation.to_owned();
                     transform.translation -= direction * pixels;
                     let shape = shapes::Line(
@@ -191,6 +206,13 @@ fn burtle_movement(mut commands: Commands, mut turtle_query: Query<(&mut Transfo
                     transform.translation -= direction * pixels;
                 }
             }
+            BurtleCommand::SetPenColor(color) => turtle.pen_color = color,
+            BurtleCommand::SetPenSize(size) => turtle.pen_size = size,
+            BurtleCommand::SetSize(size) => sprite.custom_size = Some(Vec2::new(size, size)),
+            BurtleCommand::GoTo(coords) => {
+                transform.translation = Vec3::new(coords.x, coords.y, 0.)
+            }
+            BurtleCommand::SetHeading(direction) => turtle.heading = direction,
         }
         turtle.instruction.pop_front();
     }
