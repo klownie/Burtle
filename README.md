@@ -2,6 +2,7 @@
 A minimal rewrite of the python turtle in rust using bevy as the backend
 
 ## Exemple
+```rust
 use burtle::*;
 use std::collections::HashMap;
 
@@ -55,3 +56,4 @@ fn main() {
     dessiner(&mut burtle, &þ, 60., 3.);
     burtle.setup(1000., 1000.)
 }
+``` 
