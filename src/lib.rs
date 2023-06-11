@@ -29,7 +29,6 @@ pub struct BurtleInstruction(VecDeque<BurtleCommand>);
 
 #[derive(Component)]
 pub struct Burtle {
-    size: f32,
     heading: f32,
     pen_state: bool,
     pen_size: f32,
@@ -55,7 +54,6 @@ pub enum BurtleCommand {
 impl Default for Burtle {
     fn default() -> Self {
         Self {
-            size: 100.,
             heading: 0.,
             pen_state: false,
             pen_size: 2.,
