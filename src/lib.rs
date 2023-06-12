@@ -66,7 +66,7 @@ impl Default for Burtle {
 
 // impl Drop for Burtle {
 //     fn drop(&mut self) {
-//         self.setup(1000., 1000.);
+//         self.run(1000., 1000.);
 //     }
 // }
 
