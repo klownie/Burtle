@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use bevy::window::close_on_esc;
 use bevy::window::{PresentMode, WindowResolution};
 use bevy_prototype_lyon::prelude::*;
+use std::borrow::BorrowMut;
 use std::collections::VecDeque;
 
 impl Burtle {
@@ -25,6 +26,7 @@ impl Burtle {
             .run()
     }
 }
+
 #[derive(Resource)]
 pub struct BurtleInstruction(VecDeque<BurtleCommand>);
 
@@ -169,19 +171,13 @@ fn burtle_movement(
                     0.0,
                 );
                 if turtle.pen_state {
-                    let old_pos = transform.translation.to_owned();
-                    transform.translation -= direction * pixels;
-                    let shape = shapes::Line(
-                        Vec2::new(old_pos.x, old_pos.y),
-                        Vec2::new(transform.translation.x, transform.translation.y),
-                    );
-                    commands.spawn((
-                        ShapeBundle {
-                            path: GeometryBuilder::build_as(&shape),
-                            ..default()
-                        },
-                        Stroke::new(turtle.pen_color, turtle.pen_size),
-                    ));
+                    draw_line(
+                        turtle.as_mut(),
+                        transform.as_mut(),
+                        commands.borrow_mut(),
+                        direction,
+                        pixels,
+                    )
                 } else {
                     transform.translation -= direction * pixels;
                 }
@@ -194,8 +190,24 @@ fn burtle_movement(
                 );
 
                 if turtle.pen_state {
-                    let old_pos = transform.translation.to_owned();
+                    draw_line(
+                        turtle.as_mut(),
+                        transform.as_mut(),
+                        commands.borrow_mut(),
+                        direction,
+                        pixels,
+                    )
+                } else {
                     transform.translation -= direction * pixels;
+                }
+            }
+            BurtleCommand::SetPenColor(color) => turtle.pen_color = color,
+            BurtleCommand::SetPenSize(size) => turtle.pen_size = size,
+            BurtleCommand::SetSize(size) => sprite.custom_size = Some(Vec2::new(size, size)),
+            BurtleCommand::GoTo(x, y) => {
+                if turtle.pen_state {
+                    let old_pos = transform.translation.to_owned();
+                    transform.translation = Vec3::new(x, y, 0.);
                     let shape = shapes::Line(
                         Vec2::new(old_pos.x, old_pos.y),
                         Vec2::new(transform.translation.x, transform.translation.y),
@@ -208,15 +220,33 @@ fn burtle_movement(
                         Stroke::new(turtle.pen_color, turtle.pen_size),
                     ));
                 } else {
-                    transform.translation -= direction * pixels;
+                    transform.translation = Vec3::new(x, y, 0.);
                 }
             }
-            BurtleCommand::SetPenColor(color) => turtle.pen_color = color,
-            BurtleCommand::SetPenSize(size) => turtle.pen_size = size,
-            BurtleCommand::SetSize(size) => sprite.custom_size = Some(Vec2::new(size, size)),
-            BurtleCommand::GoTo(x, y) => transform.translation = Vec3::new(x, y, 0.),
             BurtleCommand::SetHeading(direction) => turtle.heading = direction,
         }
         turtle.instruction.pop_front();
+    }
+
+    fn draw_line(
+        turtle: &mut Burtle,
+        transform: &mut Transform,
+        commands: &mut Commands,
+        direction: Vec3,
+        length: f32,
+    ) {
+        let old_pos = transform.translation.to_owned();
+        transform.translation -= direction * length;
+        let shape = shapes::Line(
+            Vec2::new(old_pos.x, old_pos.y),
+            Vec2::new(transform.translation.x, transform.translation.y),
+        );
+        commands.spawn((
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shape),
+                ..default()
+            },
+            Stroke::new(turtle.pen_color, turtle.pen_size),
+        ));
     }
 }
