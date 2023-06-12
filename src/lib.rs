@@ -1,3 +1,4 @@
+pub use bevy::prelude::Color;
 use bevy::prelude::*;
 use bevy::window::close_on_esc;
 use bevy::window::{PresentMode, WindowResolution};
@@ -5,7 +6,7 @@ use bevy_prototype_lyon::prelude::*;
 use std::collections::VecDeque;
 
 impl Burtle {
-    pub fn setup(self, width: f32, height: f32) {
+    pub fn run(self, width: f32, height: f32) {
         App::new()
             .insert_resource(BurtleInstruction(self.instruction))
             .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -47,7 +48,7 @@ pub enum BurtleCommand {
     SetPenColor(Color),
     SetPenSize(f32),
     SetSize(f32),
-    GoTo(Vec2),
+    GoTo(f32, f32),
     SetHeading(f32),
 }
 
@@ -62,6 +63,12 @@ impl Default for Burtle {
         }
     }
 }
+
+// impl Drop for Burtle {
+//     fn drop(&mut self) {
+//         self.setup(1000., 1000.);
+//     }
+// }
 
 impl Burtle {
     pub fn new() -> Burtle {
@@ -94,8 +101,8 @@ impl Burtle {
     pub fn set_pen_size(&mut self, size: f32) {
         self.instruction.push_back(BurtleCommand::SetPenSize(size))
     }
-    pub fn goto(&mut self, coords: Vec2) {
-        self.instruction.push_back(BurtleCommand::GoTo(coords))
+    pub fn goto(&mut self, x: f32, y: f32) {
+        self.instruction.push_back(BurtleCommand::GoTo(x, y))
     }
     pub fn set_heading(&mut self, direction: f32) {
         self.instruction
@@ -207,9 +214,7 @@ fn burtle_movement(
             BurtleCommand::SetPenColor(color) => turtle.pen_color = color,
             BurtleCommand::SetPenSize(size) => turtle.pen_size = size,
             BurtleCommand::SetSize(size) => sprite.custom_size = Some(Vec2::new(size, size)),
-            BurtleCommand::GoTo(coords) => {
-                transform.translation = Vec3::new(coords.x, coords.y, 0.)
-            }
+            BurtleCommand::GoTo(x, y) => transform.translation = Vec3::new(x, y, 0.),
             BurtleCommand::SetHeading(direction) => turtle.heading = direction,
         }
         turtle.instruction.pop_front();
