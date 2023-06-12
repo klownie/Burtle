@@ -16,6 +16,7 @@ impl Burtle {
                     resolution:
                         WindowResolution::new(width, height).with_scale_factor_override(1.0),
                     present_mode: PresentMode::AutoVsync,
+                    resizable: false,
                     ..default()
                 }),
                 ..default()
@@ -52,6 +53,7 @@ pub enum BurtleCommand {
     SetSize(f32),
     GoTo(f32, f32),
     SetHeading(f32),
+    Wait(u32),
 }
 
 impl Default for Burtle {
@@ -110,6 +112,9 @@ impl Burtle {
         self.instruction
             .push_back(BurtleCommand::SetHeading(direction))
     }
+    pub fn wait(&mut self, frames: u32) {
+        self.instruction.push_back(BurtleCommand::Wait(frames))
+    }
 }
 
 fn setup(
@@ -148,84 +153,97 @@ fn burtle_movement(
     mut turtle_query: Query<(&mut Transform, &mut Burtle, &mut Sprite)>,
 ) {
     for (mut transform, mut turtle, mut sprite) in turtle_query.iter_mut() {
-        let Some(&instruction) = turtle.instruction.front() else {
+        for _ in 0..turtle.instruction.len() {
+            let Some(&instruction) = turtle.instruction.front() else {
             continue; 
         };
-        match instruction {
-            BurtleCommand::PenUp => {
-                turtle.pen_state = false;
-            }
-            BurtleCommand::PenDown => {
-                turtle.pen_state = true;
-            }
-            BurtleCommand::TurnLeft(angle) => {
-                turtle.heading += angle;
-            }
-            BurtleCommand::TurnRight(angle) => {
-                turtle.heading -= angle;
-            }
-            BurtleCommand::MoveForward(pixels) => {
-                let direction = Vec3::new(
-                    turtle.heading.to_radians().cos(),
-                    turtle.heading.to_radians().sin(),
-                    0.0,
-                );
-                if turtle.pen_state {
-                    draw_line(
-                        turtle.as_mut(),
-                        transform.as_mut(),
-                        commands.borrow_mut(),
-                        direction,
-                        pixels,
-                    )
-                } else {
-                    transform.translation -= direction * pixels;
+            match instruction {
+                BurtleCommand::PenUp => {
+                    turtle.pen_state = false;
                 }
-            }
-            BurtleCommand::MoveBackward(pixels) => {
-                let direction = Vec3::new(
-                    turtle.heading.to_radians().cos(),
-                    turtle.heading.to_radians().sin(),
-                    0.0,
-                );
-
-                if turtle.pen_state {
-                    draw_line(
-                        turtle.as_mut(),
-                        transform.as_mut(),
-                        commands.borrow_mut(),
-                        direction,
-                        pixels,
-                    )
-                } else {
-                    transform.translation -= direction * pixels;
+                BurtleCommand::PenDown => {
+                    turtle.pen_state = true;
                 }
-            }
-            BurtleCommand::SetPenColor(color) => turtle.pen_color = color,
-            BurtleCommand::SetPenSize(size) => turtle.pen_size = size,
-            BurtleCommand::SetSize(size) => sprite.custom_size = Some(Vec2::new(size, size)),
-            BurtleCommand::GoTo(x, y) => {
-                if turtle.pen_state {
-                    let old_pos = transform.translation.to_owned();
-                    transform.translation = Vec3::new(x, y, 0.);
-                    let shape = shapes::Line(
-                        Vec2::new(old_pos.x, old_pos.y),
-                        Vec2::new(transform.translation.x, transform.translation.y),
+                BurtleCommand::TurnLeft(angle) => {
+                    turtle.heading += angle;
+                }
+                BurtleCommand::TurnRight(angle) => {
+                    turtle.heading -= angle;
+                }
+                BurtleCommand::MoveForward(pixels) => {
+                    let direction = Vec3::new(
+                        turtle.heading.to_radians().cos(),
+                        turtle.heading.to_radians().sin(),
+                        0.0,
                     );
-                    commands.spawn((
-                        ShapeBundle {
-                            path: GeometryBuilder::build_as(&shape),
-                            ..default()
-                        },
-                        Stroke::new(turtle.pen_color, turtle.pen_size),
-                    ));
-                } else {
-                    transform.translation = Vec3::new(x, y, 0.);
+                    if turtle.pen_state {
+                        draw_line(
+                            turtle.as_mut(),
+                            transform.as_mut(),
+                            commands.borrow_mut(),
+                            direction,
+                            pixels,
+                        )
+                    } else {
+                        transform.translation -= direction * pixels;
+                    }
+                }
+                BurtleCommand::MoveBackward(pixels) => {
+                    let direction = Vec3::new(
+                        turtle.heading.to_radians().cos(),
+                        turtle.heading.to_radians().sin(),
+                        0.0,
+                    );
+
+                    if turtle.pen_state {
+                        draw_line(
+                            turtle.as_mut(),
+                            transform.as_mut(),
+                            commands.borrow_mut(),
+                            direction,
+                            pixels,
+                        )
+                    } else {
+                        transform.translation -= direction * pixels;
+                    }
+                }
+                BurtleCommand::SetPenColor(color) => turtle.pen_color = color,
+                BurtleCommand::SetPenSize(size) => turtle.pen_size = size,
+                BurtleCommand::SetSize(size) => sprite.custom_size = Some(Vec2::new(size, size)),
+                BurtleCommand::GoTo(x, y) => {
+                    if turtle.pen_state {
+                        let old_pos = transform.translation.to_owned();
+                        transform.translation = Vec3::new(x, y, 0.);
+                        let shape = shapes::Line(
+                            Vec2::new(old_pos.x, old_pos.y),
+                            Vec2::new(transform.translation.x, transform.translation.y),
+                        );
+                        commands.spawn((
+                            ShapeBundle {
+                                path: GeometryBuilder::build_as(&shape),
+                                ..default()
+                            },
+                            Stroke::new(turtle.pen_color, turtle.pen_size),
+                        ));
+                    } else {
+                        transform.translation = Vec3::new(x, y, 0.);
+                    }
+                }
+                BurtleCommand::SetHeading(direction) => turtle.heading = direction,
+                BurtleCommand::Wait(mut frames) => {
+                    if frames == 0 {
+                        turtle.instruction.pop_front();
+                        continue;
+                    }
+                    frames -= 1;
+                    println!("frames {}", frames);
+                    turtle.instruction.pop_front();
+                    turtle.instruction.push_front(BurtleCommand::Wait(frames));
+                    break;
                 }
             }
-            BurtleCommand::SetHeading(direction) => turtle.heading = direction,
+            turtle.instruction.pop_front();
         }
-        turtle.instruction.pop_front();
     }
 
     fn draw_line(
