@@ -2,6 +2,7 @@ pub use bevy::prelude::Color;
 use bevy::prelude::*;
 use bevy::window::close_on_esc;
 use bevy::window::{PresentMode, WindowResolution};
+use bevy_despawn_with::DespawnAllCommandsExt;
 use bevy_prototype_lyon::prelude::*;
 use std::borrow::BorrowMut;
 use std::collections::VecDeque;
@@ -34,6 +35,8 @@ pub struct BurtleInstruction(VecDeque<BurtleCommand>);
 #[derive(Component)]
 pub struct Burtle {
     heading: f32,
+    waypoint_coord: VecDeque<Vec3>,
+    waypoint_heading: VecDeque<f32>,
     pen_state: bool,
     pen_size: f32,
     pen_color: Color,
@@ -54,12 +57,17 @@ pub enum BurtleCommand {
     GoTo(f32, f32),
     SetHeading(f32),
     Wait(u32),
+    Clear,
+    AddWaypoint,
+    RestoreWaypoint,
 }
 
 impl Default for Burtle {
     fn default() -> Self {
         Self {
             heading: 0.,
+            waypoint_coord: VecDeque::new(),
+            waypoint_heading: VecDeque::new(),
             pen_state: false,
             pen_size: 2.,
             pen_color: Color::BLACK,
@@ -115,26 +123,33 @@ impl Burtle {
     pub fn wait(&mut self, frames: u32) {
         self.instruction.push_back(BurtleCommand::Wait(frames))
     }
+    pub fn clear(&mut self) {
+        self.instruction.push_back(BurtleCommand::Clear)
+    }
+    pub fn reset(&mut self) {
+        self.instruction.push_back(BurtleCommand::GoTo(0., 0.));
+        self.instruction.push_back(BurtleCommand::Clear)
+    }
+    pub fn set_waypoint(&mut self) {
+        self.instruction.push_back(BurtleCommand::AddWaypoint)
+    }
+    pub fn goto_waypoint(&mut self) {
+        self.instruction.push_back(BurtleCommand::RestoreWaypoint)
+    }
 }
 
-fn setup(
-    instructions: Res<BurtleInstruction>,
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    windows: Query<&Window>,
-) {
-    let window = windows.single();
+fn setup(instructions: Res<BurtleInstruction>, mut commands: Commands) {
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
                 flip_x: false,
                 flip_y: false,
-                custom_size: Some(Vec2::new(100.0, 100.0)),
+                color: Color::DARK_GREEN,
+                custom_size: Some(Vec2::new(10.0, 10.0)),
                 anchor: Default::default(),
                 ..default()
             },
-            transform: Transform::from_xyz(window.width() / 2., window.height() / 2., 0.0),
-            texture: asset_server.load("sprites/turtle.png"),
+            transform: Transform::from_xyz(0., 0., 0.),
             ..default()
         },
         Burtle {
@@ -143,7 +158,7 @@ fn setup(
         },
     ));
     commands.spawn(Camera2dBundle {
-        transform: Transform::from_xyz(window.width() / 2., window.height() / 2., 0.0),
+        transform: Transform::from_xyz(0., 0., 0.),
         ..default()
     });
 }
@@ -236,10 +251,36 @@ fn burtle_movement(
                         continue;
                     }
                     frames -= 1;
-                    println!("frames {}", frames);
                     turtle.instruction.pop_front();
                     turtle.instruction.push_front(BurtleCommand::Wait(frames));
                     break;
+                }
+                BurtleCommand::Clear => commands.despawn_all::<With<Stroke>>(),
+                BurtleCommand::AddWaypoint => {
+                    turtle.instruction.pop_front();
+                    turtle
+                        .waypoint_coord
+                        .push_front(transform.translation.to_owned());
+                    let heading = turtle.heading.to_owned();
+                    turtle.waypoint_heading.push_front(heading);
+                    continue;
+                }
+                BurtleCommand::RestoreWaypoint => {
+                    turtle.instruction.pop_front();
+                    let heading = turtle.waypoint_heading.pop_front();
+                    let coord = turtle.waypoint_coord.pop_front();
+                    if let (Some(heading), Some(coord)) = (heading, coord) {
+                        turtle
+                            .instruction
+                            .push_front(BurtleCommand::GoTo(coord.x, coord.y));
+                        turtle
+                            .instruction
+                            .push_front(BurtleCommand::SetHeading(heading))
+                    } else {
+                        turtle.instruction.push_front(BurtleCommand::GoTo(0., 0.));
+                        turtle.instruction.push_front(BurtleCommand::SetHeading(0.))
+                    }
+                    continue;
                 }
             }
             turtle.instruction.pop_front();
