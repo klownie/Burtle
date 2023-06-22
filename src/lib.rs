@@ -35,7 +35,9 @@ pub struct BurtleInstruction(VecDeque<BurtleCommand>);
 #[derive(Component)]
 pub struct Burtle {
     heading: f32,
+    #[cfg(feature = "lindenmayer")]
     waypoint_coord: VecDeque<Vec3>,
+    #[cfg(feature = "lindenmayer")]
     waypoint_heading: VecDeque<f32>,
     pen_state: bool,
     pen_size: f32,
@@ -58,7 +60,9 @@ pub enum BurtleCommand {
     SetHeading(f32),
     Wait(u32),
     Clear,
+    #[cfg(feature = "lindenmayer")]
     AddWaypoint,
+    #[cfg(feature = "lindenmayer")]
     RestoreWaypoint,
 }
 
@@ -66,7 +70,9 @@ impl Default for Burtle {
     fn default() -> Self {
         Self {
             heading: 0.,
+            #[cfg(feature = "lindenmayer")]
             waypoint_coord: VecDeque::new(),
+            #[cfg(feature = "lindenmayer")]
             waypoint_heading: VecDeque::new(),
             pen_state: false,
             pen_size: 2.,
@@ -130,9 +136,11 @@ impl Burtle {
         self.instruction.push_back(BurtleCommand::GoTo(0., 0.));
         self.instruction.push_back(BurtleCommand::Clear)
     }
+    #[cfg(feature = "lindenmayer")]
     pub fn set_waypoint(&mut self) {
         self.instruction.push_back(BurtleCommand::AddWaypoint)
     }
+    #[cfg(feature = "lindenmayer")]
     pub fn goto_waypoint(&mut self) {
         self.instruction.push_back(BurtleCommand::RestoreWaypoint)
     }
@@ -256,6 +264,7 @@ fn burtle_movement(
                     break;
                 }
                 BurtleCommand::Clear => commands.despawn_all::<With<Stroke>>(),
+                #[cfg(feature = "lindenmayer")]
                 BurtleCommand::AddWaypoint => {
                     turtle.instruction.pop_front();
                     turtle
@@ -265,6 +274,7 @@ fn burtle_movement(
                     turtle.waypoint_heading.push_front(heading);
                     continue;
                 }
+                #[cfg(feature = "lindenmayer")]
                 BurtleCommand::RestoreWaypoint => {
                     turtle.instruction.pop_front();
                     let heading = turtle.waypoint_heading.pop_front();
